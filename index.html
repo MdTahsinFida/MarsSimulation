@@ -63,6 +63,32 @@
         .value { color: #00FF41; font-weight: bold; }
         .warning { color: #FF4400; font-weight: bold; }
         .delay { color: #FFAA00; font-weight: bold; }
+
+        .speed-controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .speed-btn {
+            background: #111;
+            border: 1px solid #00FF41;
+            color: #00FF41;
+            padding: 5px 0;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+            transition: all 0.2s;
+        }
+        .speed-btn:hover {
+            background: #00FF41;
+            color: #000;
+        }
+        .speed-btn.active {
+            background: #00FF41;
+            color: #000;
+            box-shadow: 0 0 10px #00FF41;
+        }
     </style>
 </head>
 <body>
@@ -71,6 +97,12 @@
     <h2>Mission Calendar</h2>
     <div class="math-board">
         <div id="calendar" class="calendar-display">JAN 01, 2027</div>
+        <div class="speed-controls">
+            <button class="speed-btn active" onclick="setSpeed(1, this)">1x</button>
+            <button class="speed-btn" onclick="setSpeed(5, this)">5x</button>
+            <button class="speed-btn" onclick="setSpeed(20, this)">20x</button>
+            <button class="speed-btn" onclick="setSpeed(50, this)">50x</button>
+        </div>
     </div>
 
     <h2>Strategic Telemetry</h2>
@@ -90,11 +122,12 @@
 
 <script>
 /**
- * MARS COLONIZATION SIMULATION ENGINE (V6.2)
+ * MARS COLONIZATION SIMULATION ENGINE (V6.3)
  * * Physics: Linear Intercepts & Calendar-Driven Launches
  * Logistics: 1 Starship Launch per Day (100 passengers)
  * Traffic: Proximity sensors to delay launches if space is congested
  * Responsive: Orbits scale based on viewport size
+ * Speed Control: Dynamic time scaling
  */
 
 const canvas = document.getElementById('simCanvas');
@@ -108,11 +141,17 @@ const marsStatusEl = document.getElementById('mars-status');
 const calendarEl = document.getElementById('calendar');
 
 let scaleFactor = 1;
+let timeScale = 1;
+
+function setSpeed(multiplier, btn) {
+    timeScale = multiplier;
+    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
 
 function resize() {
     canvas.width = window.innerWidth - 350;
     canvas.height = window.innerHeight;
-    // Base design was for ~800px width. Adjust scale to fit largest orbit (Jupiter ~350)
     scaleFactor = Math.min(canvas.width, canvas.height) / 850;
 }
 window.addEventListener('resize', resize);
@@ -137,10 +176,11 @@ let totalColonists = 0;
 let earthPopulation = 8000000000;
 
 let simDate = new Date(2027, 0, 1);
-const MS_PER_DAY = 1000;
+const BASE_MS_PER_DAY = 1000;
 let lastDayUpdate = 0;
 
-const ORBIT_SPEED = 0.0015;
+const BASE_ORBIT_SPEED = 0.0015;
+const BASE_ROCKET_SPEED = 0.003;
 
 class Particle {
     constructor(x, y) {
@@ -152,7 +192,11 @@ class Particle {
         this.life = 1.0;
         this.decay = Math.random() * 0.015 + 0.005;
     }
-    update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
+    update() {
+        this.x += this.vx * timeScale;
+        this.y += this.vy * timeScale;
+        this.life -= this.decay * timeScale;
+    }
     draw() {
         ctx.fillStyle = `rgba(255, 120, 0, ${this.life})`;
         ctx.fillRect(this.x, this.y, 2 * scaleFactor, 2 * scaleFactor);
@@ -163,7 +207,6 @@ class Rocket {
     constructor(isOutbound) {
         this.leg = isOutbound ? 'OUTBOUND' : 'RETURN';
         this.progress = 0;
-        this.speed = 0.003;
         this.status = 'ACTIVE';
         this.dockTime = 0;
         this.dockDuration = 100;
@@ -194,8 +237,8 @@ class Rocket {
         if (this.leg === 'OUTBOUND') {
             this.startX = centerX + Math.cos(earth.angle) * (earth.dist * scaleFactor);
             this.startY = centerY + Math.sin(earth.angle) * (earth.dist * scaleFactor);
-            const travelTime = 1 / this.speed;
-            const futureMarsAngle = mars.angle + ((ORBIT_SPEED / (mars.period / 365)) * travelTime);
+            const travelTime = 1 / BASE_ROCKET_SPEED;
+            const futureMarsAngle = mars.angle + ((BASE_ORBIT_SPEED / (mars.period / 365)) * travelTime);
             this.endX = centerX + Math.cos(futureMarsAngle) * (mars.dist * scaleFactor);
             this.endY = centerY + Math.sin(futureMarsAngle) * (mars.dist * scaleFactor);
         } else {
@@ -203,8 +246,8 @@ class Rocket {
             const currentMarsY = centerY + Math.sin(mars.angle) * (mars.dist * scaleFactor);
             this.startX = currentMarsX;
             this.startY = currentMarsY;
-            const travelTime = 1 / this.speed;
-            const futureEarthAngle = earth.angle + ((ORBIT_SPEED / (earth.period / 365)) * travelTime);
+            const travelTime = 1 / BASE_ROCKET_SPEED;
+            const futureEarthAngle = earth.angle + ((BASE_ORBIT_SPEED / (earth.period / 365)) * travelTime);
             this.endX = centerX + Math.cos(futureEarthAngle) * (earth.dist * scaleFactor);
             this.endY = centerY + Math.sin(futureEarthAngle) * (earth.dist * scaleFactor);
         }
@@ -226,14 +269,14 @@ class Rocket {
 
         if (this.leg === 'DOCKING') {
             this.updatePos();
-            this.dockTime++;
+            this.dockTime += timeScale;
             if (this.dockTime >= this.dockDuration) {
                 this.status = 'SUCCESS';
             }
             return;
         }
 
-        this.progress += this.speed;
+        this.progress += BASE_ROCKET_SPEED * timeScale;
 
         if (this.willFail && this.progress >= this.failTime) {
             this.explode();
@@ -310,8 +353,8 @@ function handleDailyLaunches(centerX, centerY) {
 
     const startEX = centerX + Math.cos(earth.angle) * (earth.dist * scaleFactor);
     const startEY = centerY + Math.sin(earth.angle) * (earth.dist * scaleFactor);
-    const travelTime = 1 / 0.003;
-    const futureMarsAngle = mars.angle + ((ORBIT_SPEED / (mars.period / 365)) * travelTime);
+    const travelTime = 1 / BASE_ROCKET_SPEED;
+    const futureMarsAngle = mars.angle + ((BASE_ORBIT_SPEED / (mars.period / 365)) * travelTime);
     const endEX = centerX + Math.cos(futureMarsAngle) * (mars.dist * scaleFactor);
     const endEY = centerY + Math.sin(futureMarsAngle) * (mars.dist * scaleFactor);
 
@@ -332,7 +375,7 @@ function handleDailyLaunches(centerX, centerY) {
 
     const startMX = centerX + Math.cos(mars.angle) * (mars.dist * scaleFactor);
     const startMY = centerY + Math.sin(mars.angle) * (mars.dist * scaleFactor);
-    const futureEarthAngle = earth.angle + ((ORBIT_SPEED / (earth.period / 365)) * travelTime);
+    const futureEarthAngle = earth.angle + ((BASE_ORBIT_SPEED / (earth.period / 365)) * travelTime);
     const endMX = centerX + Math.cos(futureEarthAngle) * (earth.dist * scaleFactor);
     const endMY = centerY + Math.sin(futureEarthAngle) * (earth.dist * scaleFactor);
 
@@ -356,7 +399,8 @@ function animate(time) {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    if (time - lastDayUpdate > MS_PER_DAY) {
+    const dayThreshold = BASE_MS_PER_DAY / timeScale;
+    if (time - lastDayUpdate > dayThreshold) {
         simDate.setDate(simDate.getDate() + 1);
         updateCalendar();
         handleDailyLaunches(centerX, centerY);
@@ -373,7 +417,7 @@ function animate(time) {
     ctx.beginPath(); ctx.arc(centerX, centerY, sunRadius, 0, Math.PI * 2); ctx.fill();
 
     planets.forEach(p => {
-        p.angle += (ORBIT_SPEED / (p.period / 365));
+        p.angle += (BASE_ORBIT_SPEED / (p.period / 365)) * timeScale;
         const orbitDist = p.dist * scaleFactor;
         const px = centerX + Math.cos(p.angle) * orbitDist;
         const py = centerY + Math.sin(p.angle) * orbitDist;
