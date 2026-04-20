@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mars Colonization: Financial & Strategic Analysis</title>
+    <title>Mars Colonization: Fleet Management</title>
     <style>
         body {
             margin: 0;
@@ -16,9 +16,8 @@
             height: 100vh;
         }
 
-        /* Top Bar */
         #top-bar {
-            height: 70px;
+            height: 90px;
             background: #0a0a0a;
             border-bottom: 2px solid #333;
             display: flex;
@@ -31,10 +30,11 @@
         }
 
         #cost-ticker {
-            font-size: 1.2em;
+            font-size: 1.8em;
             font-weight: bold;
             color: #fff;
-            text-shadow: 0 0 10px rgba(0,255,65,0.5);
+            text-shadow: 0 0 15px rgba(0,255,65,0.7);
+            letter-spacing: 2px;
         }
 
         #main-container {
@@ -43,7 +43,6 @@
             overflow: hidden;
         }
 
-        /* Side Panels */
         .side-panel {
             width: 320px;
             background: #0a0a0a;
@@ -66,9 +65,7 @@
             align-items: center;
         }
 
-        canvas {
-            display: block;
-        }
+        canvas { display: block; }
 
         h2 {
             border-bottom: 1px solid #00FF41;
@@ -90,7 +87,6 @@
 
         .calendar-display { font-size: 1.3em; color: #fff; }
 
-        /* Step Cards */
         .step-card {
             background: #111;
             border: 1px solid #333;
@@ -119,6 +115,7 @@
         .value { color: #00FF41; font-weight: bold; }
         .warning { color: #FF4400; font-weight: bold; }
         .delay { color: #FFAA00; font-weight: bold; }
+        .money { color: #FFD700; font-weight: bold; }
 
         .speed-controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 8px; }
         .speed-btn {
@@ -127,18 +124,16 @@
         }
         .speed-btn.active { background: #00FF41; color: #000; }
     </style>
-</head>
+ head>
 <body>
 
 <div id="top-bar">
     <div id="cost-ticker">
-        TOTAL COST TO EVACUATE EARTH: <span style="color:#00FF41">$810,000,000,000,000</span>
-        <br><span style="font-size: 0.6em; color: #888;">(EST. $100K PER PERSON FOR 8.1 BILLION PEOPLE)</span>
+        HOW MUCH MONEY WILL IT TAKE TO SEND EVERY HUMAN TO MARS?
     </div>
 </div>
 
 <div id="main-container">
-    <!-- Left Panel: Telemetry -->
     <div id="left-panel" class="side-panel">
         <h2>Mission Calendar</h2>
         <div class="math-board">
@@ -151,54 +146,61 @@
             </div>
         </div>
 
+        <h2>Expenditure Ledger</h2>
+        <div id="finance-board" class="math-board">
+            <div class="telemetry-item"><span class="label">Total Spent:</span> <span id="total-spent" class="money">$0</span></div>
+            <div class="telemetry-item" style="font-size: 0.7em;"><span class="label">Rocket Builds:</span> <span id="rocket-spent" class="value">$0</span></div>
+            <div class="telemetry-item" style="font-size: 0.7em;"><span class="label">Fuel Total:</span> <span id="fuel-spent" class="value">$0</span></div>
+        </div>
+
         <h2>Strategic Telemetry</h2>
         <div id="telemetry">
+            <div class="telemetry-item"><span class="label">Total ships:</span> <span id="fleet-total" class="value">20</span></div>
+            <div class="telemetry-item"><span class="label">Active ships:</span> <span id="fleet-count" class="value">20</span></div>
             <div class="telemetry-item"><span class="label">Earth Pop:</span> <span id="earth-pop" class="value">8.1B</span></div>
             <div class="telemetry-item"><span class="label">Mars Pop:</span> <span id="colonist-count" class="value">0</span></div>
             <div class="telemetry-item"><span class="label">Total Loss:</span> <span id="failed-count" class="value">0</span></div>
+            <div class="telemetry-item"><span class="label">Building:</span> <span id="build-queue" class="delay">0</span></div>
             <div class="telemetry-item"><span class="label">Earth Status:</span> <span id="earth-status" class="value">WAITING</span></div>
-            <div class="telemetry-item"><span class="label">Mars Status:</span> <span id="mars-status" class="value">WAITING</span></div>
         </div>
     </div>
 
-    <!-- Center: Simulation -->
     <div id="canvas-container">
         <canvas id="simCanvas"></canvas>
     </div>
 
-    <!-- Right Panel: Steps with Image -->
     <div id="right-panel" class="side-panel">
         <h2>Colonization Playbook</h2>
 
         <div class="step-card">
             <img src="1000016479.jpg" class="step-img" alt="Step 1">
             <div class="step-content">
-                <div class="step-title">Phase 1: Full Reusability</div>
-                <div class="step-text">Eliminating the cost of the rocket itself by landing and reflying both the booster and the ship within hours.</div>
+                <div class="step-title">Phase 1: Max 20 Fleet</div>
+                <div class="step-text">The evacuation is maintained by a 20-vessel fleet. Lost ships are replaced to keep the fleet at maximum capacity.</div>
             </div>
         </div>
 
         <div class="step-card">
             <img src="1000016479.jpg" class="step-img" alt="Step 2">
             <div class="step-content">
-                <div class="step-title">Phase 2: Orbital Refilling</div>
-                <div class="step-text">Starship is refilled in LEO to maximize payload to Mars. This allows sending 100+ tons per trip.</div>
+                <div class="step-title">Phase 2: Orbital Offset</div>
+                <div class="step-text">Navigation systems now provide vertical/horizontal trajectory offsets to ensure ships do not overlap during transit.</div>
             </div>
         </div>
 
         <div class="step-card">
             <img src="1000016479.jpg" class="step-img" alt="Step 3">
             <div class="step-content">
-                <div class="step-title">Phase 3: Mars Propellant</div>
-                <div class="step-text">Utilizing ISRU (In-Situ Resource Utilization) to create methane fuel from Mars' atmosphere for the return journey.</div>
+                <div class="step-title">Phase 3: 5-Day Manufacturing</div>
+                <div class="step-text">Every explosion triggers an emergency manufacturing protocol. It takes exactly 5 days to build and launch a replacement. Each rocket costs $100M.</div>
             </div>
         </div>
 
         <div class="step-card">
             <img src="1000016479.jpg" class="step-img" alt="Step 4">
             <div class="step-content">
-                <div class="step-title">Phase 4: Self-Sustaining City</div>
-                <div class="step-text">Building a million-person city to ensure the light of consciousness survives even if Earth faces catastrophe.</div>
+                <div class="step-title">Phase 4: Return Loops</div>
+                <div class="step-text">Sustainable evacuation relies on ships returning from Mars. Fuel costs $240,000 for each one-way journey.</div>
             </div>
         </div>
     </div>
@@ -211,11 +213,31 @@ const failedEl = document.getElementById('failed-count');
 const colonistEl = document.getElementById('colonist-count');
 const earthPopEl = document.getElementById('earth-pop');
 const earthStatusEl = document.getElementById('earth-status');
-const marsStatusEl = document.getElementById('mars-status');
+const fleetEl = document.getElementById('fleet-count');
+const fleetTotalEl = document.getElementById('fleet-total');
+const buildQueueEl = document.getElementById('build-queue');
 const calendarEl = document.getElementById('calendar');
+
+// Finance Elements
+const totalSpentEl = document.getElementById('total-spent');
+const rocketSpentEl = document.getElementById('rocket-spent');
+const fuelSpentEl = document.getElementById('fuel-spent');
 
 let scaleFactor = 1;
 let timeScale = 1;
+
+// Constants for Costs
+const COST_ROCKET = 100000000; // $100M
+const COST_FUEL = 240000;    // $240k per leg
+
+let moneySpentOnRockets = 20 * COST_ROCKET; // Initial 20 ships
+let moneySpentOnFuel = 0;
+
+function formatCurrency(value) {
+    if (value >= 1000000000) return '$' + (value / 1000000000).toFixed(2) + 'B';
+    if (value >= 1000000) return '$' + (value / 1000000).toFixed(1) + 'M';
+    return '$' + value.toLocaleString();
+}
 
 function setSpeed(multiplier, btn) {
     timeScale = multiplier;
@@ -232,8 +254,6 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-const SUN_BASE_RADIUS = 18;
-
 const planets = [
     { name: 'Mercury', dist: 65,  radius: 2, period: 88,   color: '#A5A5A5', angle: Math.random() * 6 },
     { name: 'Venus',   dist: 100, radius: 4, period: 225,  color: '#E3BB76', angle: Math.random() * 6 },
@@ -248,6 +268,10 @@ let totalFailures = 0;
 let totalColonists = 0;
 let earthPopulation = 8100000000;
 let landedOnMars = 0;
+let shipsOnMars = 0;
+let availableFleet = 20;
+let totalFleetCapacity = 20; // Current total in existence
+let constructionQueue = []; // {daysLeft: 5}
 
 let simDate = new Date(2027, 0, 1);
 const BASE_MS_PER_DAY = 1000;
@@ -284,15 +308,19 @@ class Rocket {
         this.status = 'ACTIVE';
         this.dockTime = 0;
         this.dockDuration = 100;
-        this.willFail = Math.random() < 0.05;
-        this.failTime = 0.2 + Math.random() * 0.6;
+        this.willFail = Math.random() < 0.03;
+        this.failTime = 0.2 + Math.random() * 0.8;
+        // Trajectory offset to avoid traveling "through" each other
+        this.offset = (Math.random() - 0.5) * 12 * scaleFactor;
         this.calculatePath();
         this.flicker = 0;
         this.x = 0;
         this.y = 0;
+
+        // Add fuel cost for this leg
+        moneySpentOnFuel += COST_FUEL;
     }
 
-    // Helper to check if a line segment passes through a circle
     static checkObstruction(x1, y1, x2, y2, cx, cy, r) {
         const dx = x2 - x1;
         const dy = y2 - y1;
@@ -338,6 +366,7 @@ class Rocket {
             if (this.dockTime >= this.dockDuration) {
                 this.status = 'SUCCESS';
                 landedOnMars++;
+                shipsOnMars--;
             }
             return;
         }
@@ -345,25 +374,38 @@ class Rocket {
         this.progress += BASE_ROCKET_SPEED * timeScale;
         if (this.willFail && this.progress >= this.failTime) { this.explode(); return; }
 
-        this.x = this.startX + (this.endX - this.startX) * this.progress;
-        this.y = this.startY + (this.endY - this.startY) * this.progress;
+        const lx = this.startX + (this.endX - this.startX) * this.progress;
+        const ly = this.startY + (this.endY - this.startY) * this.progress;
+
+        // Offset perpendicular to path
+        const pathAngle = Math.atan2(this.endY - this.startY, this.endX - this.startX);
+        this.x = lx + Math.cos(pathAngle + Math.PI/2) * this.offset;
+        this.y = ly + Math.sin(pathAngle + Math.PI/2) * this.offset;
 
         if (this.progress >= 1.0) {
             if (this.leg === 'OUTBOUND') {
                 totalColonists += 100;
                 this.leg = 'DOCKING';
                 this.dockTime = 0;
+                shipsOnMars++;
             } else {
                 this.status = 'SUCCESS';
+                availableFleet++;
             }
         }
-
         this.flicker = (this.flicker + 0.2) % 1;
     }
 
     explode() {
         this.status = 'FAILED';
         totalFailures++;
+        if(this.leg === 'DOCKING') shipsOnMars--;
+
+        // Ship removed from fleet
+        totalFleetCapacity--;
+        // Add to build queue
+        constructionQueue.push(5);
+
         for (let i = 0; i < 40; i++) particles.push(new Particle(this.x, this.y));
     }
 
@@ -373,41 +415,35 @@ class Rocket {
         ctx.translate(this.x, this.y);
         let angle = (this.leg === 'DOCKING') ? planets[3].angle + Math.PI/2 : Math.atan2(this.endY - this.startY, this.endX - this.startX) + Math.PI/2;
         ctx.rotate(angle);
-
         const w = 4 * scaleFactor;
         const h = 10 * scaleFactor;
-
         if (this.leg !== 'DOCKING') {
             const plumeH = (4 + Math.sin(Date.now() * 0.1) * 2) * scaleFactor;
             ctx.fillStyle = this.flicker > 0.5 ? '#FF8800' : '#FF4400';
             ctx.beginPath();
-            ctx.moveTo(-w/3, h/2);
-            ctx.lineTo(w/3, h/2);
-            ctx.lineTo(0, h/2 + plumeH);
-            ctx.fill();
+            ctx.moveTo(-w/3, h/2); ctx.lineTo(w/3, h/2); ctx.lineTo(0, h/2 + plumeH); ctx.fill();
         }
-
-        ctx.fillStyle = '#BBB';
-        ctx.fillRect(-w/2, -h/4, w, h*0.75);
-        ctx.fillStyle = '#FFF';
-        ctx.beginPath();
-        ctx.moveTo(-w/2, -h/4);
-        ctx.lineTo(w/2, -h/4);
-        ctx.lineTo(0, -h/2);
-        ctx.fill();
-        ctx.fillStyle = '#555';
-        ctx.fillRect(-w*0.8, h/4, w*0.3, h/4);
-        ctx.fillRect(w*0.5, h/4, w*0.3, h/4);
-
+        ctx.fillStyle = '#BBB'; ctx.fillRect(-w/2, -h/4, w, h*0.75);
+        ctx.fillStyle = '#FFF'; ctx.beginPath(); ctx.moveTo(-w/2, -h/4); ctx.lineTo(w/2, -h/4); ctx.lineTo(0, -h/2); ctx.fill();
         ctx.restore();
     }
 }
 
 function handleDailyLaunches(centerX, centerY) {
+    // Progress construction queue
+    for (let i = constructionQueue.length - 1; i >= 0; i--) {
+        constructionQueue[i]--;
+        if (constructionQueue[i] <= 0) {
+            constructionQueue.splice(i, 1);
+            totalFleetCapacity++;
+            availableFleet++;
+            // Cost of building new ship
+            moneySpentOnRockets += COST_ROCKET;
+        }
+    }
+
     const earth = planets[2];
     const mars = planets[3];
-
-    // Check if the proposed Earth launch path is safe
     const eTravel = 1 / BASE_ROCKET_SPEED;
     const futureMarsAngle = mars.angle + ((BASE_ORBIT_SPEED / (mars.period / 365)) * eTravel);
     const startEX = centerX + Math.cos(earth.angle) * (earth.dist * scaleFactor);
@@ -416,30 +452,31 @@ function handleDailyLaunches(centerX, centerY) {
     const endEY = centerY + Math.sin(futureMarsAngle) * (mars.dist * scaleFactor);
 
     let isEarthSafe = true;
+    let earthBlockReason = "";
 
-    // Check sun and inner planets (Mercury, Venus)
-    if (Rocket.checkObstruction(startEX, startEY, endEX, endEY, centerX, centerY, SUN_BASE_RADIUS * 2 * scaleFactor)) isEarthSafe = false;
-    planets.slice(0, 2).forEach(p => {
-        const px = centerX + Math.cos(p.angle) * (p.dist * scaleFactor);
-        const py = centerY + Math.sin(p.angle) * (p.dist * scaleFactor);
-        if (Rocket.checkObstruction(startEX, startEY, endEX, endEY, px, py, p.radius * 3 * scaleFactor)) isEarthSafe = false;
-    });
-
-    // Simple proximity check for other rockets to prevent stacking
-    rockets.forEach(r => {
-        const dist = Math.sqrt((startEX - r.x)**2 + (startEY - r.y)**2);
-        if (dist < 20 * scaleFactor) isEarthSafe = false;
-    });
+    if (availableFleet <= 0) {
+        isEarthSafe = false;
+        earthBlockReason = "NO SHIPS";
+    }
+    else if (shipsOnMars >= 6) {
+        isEarthSafe = false;
+        earthBlockReason = "MARS FULL";
+    }
+    const mercuryDist = planets[0].dist * scaleFactor;
+    if (isEarthSafe && Rocket.checkObstruction(startEX, startEY, endEX, endEY, centerX, centerY, mercuryDist + (5 * scaleFactor))) {
+        isEarthSafe = false;
+        earthBlockReason = "SOLAR DANGER";
+    }
 
     if (isEarthSafe && earthPopulation >= 100) {
         rockets.push(new Rocket(true));
         earthPopulation -= 100;
+        availableFleet--;
         earthStatusEl.innerText = "LAUNCHED"; earthStatusEl.className = "value";
     } else if (!isEarthSafe) {
-        earthStatusEl.innerText = "OBSTRUCTED"; earthStatusEl.className = "warning";
+        earthStatusEl.innerText = earthBlockReason || "WAITING"; earthStatusEl.className = "warning";
     }
 
-    // Check if the proposed Mars launch path is safe
     let isMarsSafe = landedOnMars > 0;
     if (isMarsSafe) {
         const mTravel = 1 / BASE_ROCKET_SPEED;
@@ -449,36 +486,20 @@ function handleDailyLaunches(centerX, centerY) {
         const endMX = centerX + Math.cos(futureEarthAngle) * (earth.dist * scaleFactor);
         const endMY = centerY + Math.sin(futureEarthAngle) * (earth.dist * scaleFactor);
 
-        // Check sun and inner planets for return journey
-        if (Rocket.checkObstruction(startMX, startMY, endMX, endMY, centerX, centerY, SUN_BASE_RADIUS * 2 * scaleFactor)) isMarsSafe = false;
-        planets.slice(0, 3).forEach(p => {
-            const px = centerX + Math.cos(p.angle) * (p.dist * scaleFactor);
-            const py = centerY + Math.sin(p.angle) * (p.dist * scaleFactor);
-            if (Rocket.checkObstruction(startMX, startMY, endMX, endMY, px, py, p.radius * 3 * scaleFactor)) isMarsSafe = false;
-        });
-
-        // Prevention for returns stacking
-        rockets.forEach(r => {
-            const dist = Math.sqrt((startMX - r.x)**2 + (startMY - r.y)**2);
-            if (dist < 20 * scaleFactor) isMarsSafe = false;
-        });
+        if (Rocket.checkObstruction(startMX, startMY, endMX, endMY, centerX, centerY, mercuryDist + (5 * scaleFactor))) {
+            isMarsSafe = false;
+        }
 
         if (isMarsSafe) {
             rockets.push(new Rocket(false));
             landedOnMars--;
-            marsStatusEl.innerText = "LAUNCHED"; marsStatusEl.className = "value";
-        } else {
-            marsStatusEl.innerText = "OBSTRUCTED"; marsStatusEl.className = "warning";
         }
-    } else {
-        marsStatusEl.innerText = "NO SHIPS"; marsStatusEl.className = "delay";
     }
 }
 
 function animate(time) {
     ctx.fillStyle = 'rgba(5, 5, 5, 0.4)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
@@ -491,10 +512,7 @@ function animate(time) {
     }
 
     ctx.fillStyle = '#FFD700';
-    ctx.shadowBlur = 15 * scaleFactor;
-    ctx.shadowColor = '#FF8800';
-    ctx.beginPath(); ctx.arc(centerX, centerY, SUN_BASE_RADIUS * scaleFactor, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.arc(centerX, centerY, 18 * scaleFactor, 0, Math.PI * 2); ctx.fill();
 
     planets.forEach(p => {
         p.angle += (BASE_ORBIT_SPEED / (p.period / 365)) * timeScale;
@@ -512,13 +530,21 @@ function animate(time) {
     particles = particles.filter(p => p.life > 0);
     particles.forEach(p => { p.update(); p.draw(); });
 
+    // Update Telemetry
     failedEl.innerText = totalFailures;
     colonistEl.innerText = totalColonists.toLocaleString();
     earthPopEl.innerText = (earthPopulation / 1000000000).toFixed(2) + "B";
+    fleetEl.innerText = availableFleet;
+    fleetTotalEl.innerText = totalFleetCapacity;
+    buildQueueEl.innerText = constructionQueue.length;
+
+    // Update Finance
+    totalSpentEl.innerText = formatCurrency(moneySpentOnRockets + moneySpentOnFuel);
+    rocketSpentEl.innerText = formatCurrency(moneySpentOnRockets);
+    fuelSpentEl.innerText = formatCurrency(moneySpentOnFuel);
 
     requestAnimationFrame(animate);
 }
-
 requestAnimationFrame(animate);
 </script>
 </body>
