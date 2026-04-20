@@ -60,6 +60,7 @@
         .label { color: #888; }
         .value { color: #00FF41; font-weight: bold; }
         .warning { color: #FF4400; font-weight: bold; }
+        .delay { color: #FFAA00; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -76,9 +77,10 @@
 
     <h2>Strategic Telemetry</h2>
     <div id="telemetry">
+        <div class="telemetry-item"><span class="label">Earth Population:</span> <span id="earth-pop" class="value">8,000,000,000</span></div>
+        <div class="telemetry-item"><span class="label">Mars Population:</span> <span id="colonist-count" class="value">0</span></div>
         <div class="telemetry-item"><span class="label">Missions Active:</span> <span id="active-count" class="value">0</span></div>
         <div class="telemetry-item"><span class="label">Total Failures:</span> <span id="failed-count" class="value">0</span></div>
-        <div class="telemetry-item"><span class="label">Colonists Delivered:</span> <span id="colonist-count" class="value">0</span></div>
         <div class="telemetry-item"><span class="label">Earth Status:</span> <span id="earth-status" class="value">WAITING</span></div>
         <div class="telemetry-item"><span class="label">Mars Status:</span> <span id="mars-status" class="value">WAITING</span></div>
     </div>
@@ -86,11 +88,10 @@
 
 <script>
 /**
- * MARS COLONIZATION SIMULATION ENGINE (V5.0)
+ * MARS COLONIZATION SIMULATION ENGINE (V6.1)
  * * Physics: Linear Intercepts & Calendar-Driven Launches
- * Trajectory: Straight lines only.
- * Logistics: 1 Launch per Day (Subject to Obstructed Window)
- * Visuals: Clean trails (Reduced opacity accumulation)
+ * Logistics: 1 Starship Launch per Day (100 passengers)
+ * Traffic: Proximity sensors to delay launches if space is congested
  */
 
 const canvas = document.getElementById('simCanvas');
@@ -98,6 +99,7 @@ const ctx = canvas.getContext('2d');
 const activeEl = document.getElementById('active-count');
 const failedEl = document.getElementById('failed-count');
 const colonistEl = document.getElementById('colonist-count');
+const earthPopEl = document.getElementById('earth-pop');
 const earthStatusEl = document.getElementById('earth-status');
 const marsStatusEl = document.getElementById('mars-status');
 const calendarEl = document.getElementById('calendar');
@@ -110,6 +112,8 @@ window.addEventListener('resize', resize);
 resize();
 
 const SUN = { radius: 18, dangerZone: 70 };
+const TRAFFIC_SAFE_DISTANCE = 15; // Minimum distance to allow new launch
+
 const planets = [
     { name: 'Mercury', dist: 65,  radius: 2, period: 88,   color: '#A5A5A5', angle: Math.random() * 6 },
     { name: 'Venus',   dist: 100, radius: 4, period: 225,  color: '#E3BB76', angle: Math.random() * 6 },
@@ -122,6 +126,7 @@ let rockets = [];
 let particles = [];
 let totalFailures = 0;
 let totalColonists = 0;
+let earthPopulation = 8000000000;
 
 // Calendar State
 let simDate = new Date(2026, 0, 1);
@@ -154,12 +159,13 @@ class Rocket {
         this.speed = 0.003;
         this.status = 'ACTIVE';
         this.dockTime = 0;
-        this.dockDuration = 100; // Shorter docking to match daily pace
+        this.dockDuration = 100;
 
         this.willFail = Math.random() < 0.05;
         this.failTime = 0.2 + Math.random() * 0.6;
 
         this.calculatePath();
+        this.updatePos(); // Initialize x, y
     }
 
     isPathObstructed(x1, y1, x2, y2, cx, cy, r) {
@@ -197,16 +203,25 @@ class Rocket {
         }
     }
 
-    update() {
-        if (this.status !== 'ACTIVE') return;
-
+    updatePos() {
         if (this.leg === 'DOCKING') {
             const mars = planets[3];
             this.x = (canvas.width / 2) + Math.cos(mars.angle) * mars.dist;
             this.y = (canvas.height / 2) + Math.sin(mars.angle) * mars.dist;
+        } else {
+            this.x = this.startX + (this.endX - this.startX) * this.progress;
+            this.y = this.startY + (this.endY - this.startY) * this.progress;
+        }
+    }
+
+    update() {
+        if (this.status !== 'ACTIVE') return;
+
+        if (this.leg === 'DOCKING') {
+            this.updatePos();
             this.dockTime++;
             if (this.dockTime >= this.dockDuration) {
-                this.status = 'SUCCESS'; // Return logic is now handled by independent daily checks
+                this.status = 'SUCCESS';
             }
             return;
         }
@@ -218,12 +233,11 @@ class Rocket {
             return;
         }
 
-        this.x = this.startX + (this.endX - this.startX) * this.progress;
-        this.y = this.startY + (this.endY - this.startY) * this.progress;
+        this.updatePos();
 
         if (this.progress >= 1.0) {
             if (this.leg === 'OUTBOUND') {
-                totalColonists += 50;
+                totalColonists += 100;
                 this.leg = 'DOCKING';
                 this.dockTime = 0;
             } else {
@@ -261,12 +275,21 @@ function updateCalendar() {
     calendarEl.innerText = `${m} ${d}, ${y}`;
 }
 
+function isCongested(x, y) {
+    return rockets.some(r => {
+        if (r.status !== 'ACTIVE') return false;
+        const dx = r.x - x;
+        const dy = r.y - y;
+        return Math.sqrt(dx*dx + dy*dy) < TRAFFIC_SAFE_DISTANCE;
+    });
+}
+
 function handleDailyLaunches(centerX, centerY) {
     const earth = planets[2];
     const mars = planets[3];
     const rocketHelper = new Rocket(true);
 
-    // 1. Earth Outbound Check
+    // 1. Earth Outbound Check (Starship Launch)
     const startEX = centerX + Math.cos(earth.angle) * earth.dist;
     const startEY = centerY + Math.sin(earth.angle) * earth.dist;
     const travelTime = 1 / 0.003;
@@ -274,13 +297,19 @@ function handleDailyLaunches(centerX, centerY) {
     const endEX = centerX + Math.cos(futureMarsAngle) * mars.dist;
     const endEY = centerY + Math.sin(futureMarsAngle) * mars.dist;
 
-    if (!rocketHelper.isPathObstructed(startEX, startEY, endEX, endEY, centerX, centerY, SUN.dangerZone)) {
-        rockets.push(new Rocket(true));
-        earthStatusEl.innerText = "LAUNCHED";
-        earthStatusEl.className = "value";
-    } else {
+    if (rocketHelper.isPathObstructed(startEX, startEY, endEX, endEY, centerX, centerY, SUN.dangerZone)) {
         earthStatusEl.innerText = "OBSTRUCTED";
         earthStatusEl.className = "warning";
+    } else if (isCongested(startEX, startEY)) {
+        earthStatusEl.innerText = "TRAFFIC DELAY";
+        earthStatusEl.className = "delay";
+    } else {
+        if (earthPopulation >= 100) {
+            rockets.push(new Rocket(true));
+            earthPopulation -= 100;
+            earthStatusEl.innerText = "LAUNCHED";
+            earthStatusEl.className = "value";
+        }
     }
 
     // 2. Mars Return Check
@@ -290,25 +319,26 @@ function handleDailyLaunches(centerX, centerY) {
     const endMX = centerX + Math.cos(futureEarthAngle) * earth.dist;
     const endMY = centerY + Math.sin(futureEarthAngle) * earth.dist;
 
-    if (!rocketHelper.isPathObstructed(startMX, startMY, endMX, endMY, centerX, centerY, SUN.dangerZone)) {
+    if (rocketHelper.isPathObstructed(startMX, startMY, endMX, endMY, centerX, centerY, SUN.dangerZone)) {
+        marsStatusEl.innerText = "OBSTRUCTED";
+        marsStatusEl.className = "warning";
+    } else if (isCongested(startMX, startMY)) {
+        marsStatusEl.innerText = "TRAFFIC DELAY";
+        marsStatusEl.className = "delay";
+    } else {
         rockets.push(new Rocket(false));
         marsStatusEl.innerText = "LAUNCHED";
         marsStatusEl.className = "value";
-    } else {
-        marsStatusEl.innerText = "OBSTRUCTED";
-        marsStatusEl.className = "warning";
     }
 }
 
 function animate(time) {
-    // Cleaner trails: higher alpha for clear background, small accumulation
     ctx.fillStyle = 'rgba(5, 5, 5, 0.4)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    // Calendar & Daily Logic
     if (time - lastDayUpdate > MS_PER_DAY) {
         simDate.setDate(simDate.getDate() + 1);
         updateCalendar();
@@ -343,7 +373,8 @@ function animate(time) {
 
     activeEl.innerText = rockets.length;
     failedEl.innerText = totalFailures;
-    colonistEl.innerText = totalColonists;
+    colonistEl.innerText = totalColonists.toLocaleString();
+    earthPopEl.innerText = Math.floor(earthPopulation).toLocaleString();
 
     requestAnimationFrame(animate);
 }
