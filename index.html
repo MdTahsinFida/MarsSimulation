@@ -18,16 +18,18 @@
             flex: 1;
             position: relative;
             background: radial-gradient(circle at center, #111 0%, #000 100%);
+            order: 2;
         }
         #ui-panel {
             width: 350px;
             padding: 25px;
-            border-left: 2px solid #333;
+            border-right: 2px solid #333;
             background: #0a0a0a;
             display: flex;
             flex-direction: column;
-            box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+            box-shadow: 5px 0 15px rgba(0,0,0,0.5);
             overflow-y: auto;
+            order: 1;
         }
         h2 {
             border-bottom: 1px solid #00FF41;
@@ -65,10 +67,6 @@
 </head>
 <body>
 
-<div id="canvas-container">
-    <canvas id="simCanvas"></canvas>
-</div>
-
 <div id="ui-panel">
     <h2>Mission Calendar</h2>
     <div class="math-board">
@@ -84,6 +82,10 @@
         <div class="telemetry-item"><span class="label">Earth Status:</span> <span id="earth-status" class="value">WAITING</span></div>
         <div class="telemetry-item"><span class="label">Mars Status:</span> <span id="mars-status" class="value">WAITING</span></div>
     </div>
+</div>
+
+<div id="canvas-container">
+    <canvas id="simCanvas"></canvas>
 </div>
 
 <script>
