@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mars Colonization: Fleet Management</title>
+    <title>Mars Colonization Simulation</title>
+    <!-- MathJax for high-quality LaTeX rendering -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
         body {
             margin: 0;
@@ -17,24 +20,25 @@
         }
 
         #top-bar {
-            height: 90px;
+            height: 120px;
             background: #0a0a0a;
             border-bottom: 2px solid #333;
             display: flex;
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 0 20px;
+            padding: 0 40px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.8);
             z-index: 10;
         }
 
         #cost-ticker {
-            font-size: 1.8em;
+            font-size: 2.2em;
             font-weight: bold;
             color: #fff;
-            text-shadow: 0 0 15px rgba(0,255,65,0.7);
-            letter-spacing: 2px;
+            text-shadow: 0 0 20px rgba(0,255,65,0.8);
+            letter-spacing: 3px;
+            line-height: 1.2;
         }
 
         #main-container {
@@ -54,7 +58,7 @@
         }
 
         #left-panel { border-right: 2px solid #222; }
-        #right-panel { border-left: 2px solid #222; width: 380px;}
+        #right-panel { border-left: 2px solid #222; width: 450px;}
 
         #canvas-container {
             flex: 1;
@@ -89,21 +93,13 @@
 
         .step-card {
             background: #111;
-            border: 1px solid #333;
-            margin-bottom: 20px;
-            border-radius: 4px;
-            overflow: hidden;
+            border-left: 3px solid #00FF41;
+            margin-bottom: 12px;
+            padding: 15px 10px;
+            font-size: 0.9em;
         }
-        .step-img {
-            width: 100%;
-            height: 120px;
-            object-fit: cover;
-            filter: sepia(100%) hue-rotate(90deg) brightness(0.8);
-            border-bottom: 1px solid #333;
-        }
-        .step-content { padding: 12px; }
-        .step-title { font-weight: bold; color: #fff; margin-bottom: 5px; font-size: 0.9em; }
-        .step-text { font-size: 0.75em; color: #aaa; line-height: 1.4; }
+        .step-title { font-weight: bold; color: #00FF41; margin-bottom: 10px; display: block; text-transform: uppercase; font-size: 0.8em; }
+        .math-text { color: #fff; line-height: 1.5; overflow-x: auto; }
 
         .telemetry-item {
             margin: 8px 0;
@@ -113,9 +109,8 @@
         }
         .label { color: #888; }
         .value { color: #00FF41; font-weight: bold; }
-        .warning { color: #FF4400; font-weight: bold; }
-        .delay { color: #FFAA00; font-weight: bold; }
         .money { color: #FFD700; font-weight: bold; }
+        .warning { color: #FF4400; font-weight: bold; }
 
         .speed-controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 8px; }
         .speed-btn {
@@ -124,7 +119,7 @@
         }
         .speed-btn.active { background: #00FF41; color: #000; }
     </style>
- head>
+</head>
 <body>
 
 <div id="top-bar">
@@ -157,10 +152,10 @@
         <div id="telemetry">
             <div class="telemetry-item"><span class="label">Total ships:</span> <span id="fleet-total" class="value">20</span></div>
             <div class="telemetry-item"><span class="label">Active ships:</span> <span id="fleet-count" class="value">20</span></div>
-            <div class="telemetry-item"><span class="label">Earth Pop:</span> <span id="earth-pop" class="value">8.1B</span></div>
+            <div class="telemetry-item"><span class="label">Earth Pop:</span> <span id="earth-pop" class="value">8.3B</span></div>
             <div class="telemetry-item"><span class="label">Mars Pop:</span> <span id="colonist-count" class="value">0</span></div>
             <div class="telemetry-item"><span class="label">Total Loss:</span> <span id="failed-count" class="value">0</span></div>
-            <div class="telemetry-item"><span class="label">Building:</span> <span id="build-queue" class="delay">0</span></div>
+            <div class="telemetry-item"><span class="label">Building:</span> <span id="build-queue" class="value">0</span></div>
             <div class="telemetry-item"><span class="label">Earth Status:</span> <span id="earth-status" class="value">WAITING</span></div>
         </div>
     </div>
@@ -170,37 +165,41 @@
     </div>
 
     <div id="right-panel" class="side-panel">
-        <h2>Colonization Playbook</h2>
+        <h2>The Cost Equation</h2>
 
         <div class="step-card">
-            <img src="1000016479.jpg" class="step-img" alt="Step 1">
-            <div class="step-content">
-                <div class="step-title">Phase 1: Max 20 Fleet</div>
-                <div class="step-text">The evacuation is maintained by a 20-vessel fleet. Lost ships are replaced to keep the fleet at maximum capacity.</div>
+            <span class="step-title">Step 1: Total Logistics</span>
+            <div class="math-text">
+                \[ \frac{8.3 \times 10^7 \text{ (Humans Alive)}}{1 \times 10^2 \text{ (100 People/Ship)}} = 8.3 \times 10^5 \text{ trips} \]
             </div>
         </div>
 
         <div class="step-card">
-            <img src="1000016479.jpg" class="step-img" alt="Step 2">
-            <div class="step-content">
-                <div class="step-title">Phase 2: Orbital Offset</div>
-                <div class="step-text">Navigation systems now provide vertical/horizontal trajectory offsets to ensure ships do not overlap during transit.</div>
+            <span class="step-title">Step 2: Fuel Mass Requirement</span>
+            <div class="math-text">
+                \[ 1.2^6 \text{ (To Mars)} \times 2 \times 10^0 \text{ (RT)} = 2.4 \times 10^6 \text{ kg fuel (Round Trip)} \]
             </div>
         </div>
 
         <div class="step-card">
-            <img src="1000016479.jpg" class="step-img" alt="Step 3">
-            <div class="step-content">
-                <div class="step-title">Phase 3: 5-Day Manufacturing</div>
-                <div class="step-text">Every explosion triggers an emergency manufacturing protocol. It takes exactly 5 days to build and launch a replacement. Each rocket costs $100M.</div>
+            <span class="step-title">Step 3: Cost per Round Trip</span>
+            <div class="math-text">
+                \[ 2.4 \times 10^6 \times 2 \times 10^{-1} \text{ (\$0.20/kg Methalox)} = \$4.8 \times 10^5 \]
             </div>
         </div>
 
         <div class="step-card">
-            <img src="1000016479.jpg" class="step-img" alt="Step 4">
-            <div class="step-content">
-                <div class="step-title">Phase 4: Return Loops</div>
-                <div class="step-text">Sustainable evacuation relies on ships returning from Mars. Fuel costs $240,000 for each one-way journey.</div>
+            <span class="step-title">Step 4: Total Build Costs</span>
+            <div class="math-text">
+                \[ 2 \times 10^1 \text{ (Ships)} \times 1 \times 10^{11} \text{ (\$100B/Rocket)} = \$2 \times 10^{12} \]
+            </div>
+        </div>
+
+        <div class="step-card">
+            <span class="step-title">Step 5: Ultimate Sum</span>
+            <div class="math-text">
+                \[ 3.984 \times 10^{13} \text{ (Fuel)} + 2 \times 10^{12} \text{ (Build)} = \$7.968 \times 10^{25} \]
+                <div style="margin-top: 10px; color: #FFD700; font-weight: bold; text-align: center;">$79.68 Septillion Dollars</div>
             </div>
         </div>
     </div>
@@ -218,7 +217,6 @@ const fleetTotalEl = document.getElementById('fleet-total');
 const buildQueueEl = document.getElementById('build-queue');
 const calendarEl = document.getElementById('calendar');
 
-// Finance Elements
 const totalSpentEl = document.getElementById('total-spent');
 const rocketSpentEl = document.getElementById('rocket-spent');
 const fuelSpentEl = document.getElementById('fuel-spent');
@@ -226,17 +224,20 @@ const fuelSpentEl = document.getElementById('fuel-spent');
 let scaleFactor = 1;
 let timeScale = 1;
 
-// Constants for Costs
-const COST_ROCKET = 100000000; // $100M
-const COST_FUEL = 240000;    // $240k per leg
+// Updated Financial Data from user query
+const COST_ROCKET = 100000000000; // $100 Billion per rocket
+const COST_FUEL_LEG = 240000;     // $240k per leg (half of $480k round trip)
 
-let moneySpentOnRockets = 20 * COST_ROCKET; // Initial 20 ships
+let moneySpentOnRockets = 20 * COST_ROCKET;
 let moneySpentOnFuel = 0;
 
 function formatCurrency(value) {
-    if (value >= 1000000000) return '$' + (value / 1000000000).toFixed(2) + 'B';
-    if (value >= 1000000) return '$' + (value / 1000000).toFixed(1) + 'M';
-    return '$' + value.toLocaleString();
+    if (value >= 1e24) return '$' + (value / 1e24).toFixed(2) + ' Sept';
+    if (value >= 1e21) return '$' + (value / 1e21).toFixed(2) + ' Sext';
+    if (value >= 1e12) return '$' + (value / 1e12).toFixed(2) + 'T';
+    if (value >= 1e9) return '$' + (value / 1e9).toFixed(2) + 'B';
+    if (value >= 1e6) return '$' + (value / 1e6).toFixed(1) + 'M';
+    return '$' + Math.floor(value).toLocaleString();
 }
 
 function setSpeed(multiplier, btn) {
@@ -266,12 +267,12 @@ let rockets = [];
 let particles = [];
 let totalFailures = 0;
 let totalColonists = 0;
-let earthPopulation = 8100000000;
+let earthPopulation = 8300000000;
 let landedOnMars = 0;
 let shipsOnMars = 0;
 let availableFleet = 20;
-let totalFleetCapacity = 20; // Current total in existence
-let constructionQueue = []; // {daysLeft: 5}
+let totalFleetCapacity = 20;
+let constructionQueue = [];
 
 let simDate = new Date(2027, 0, 1);
 const BASE_MS_PER_DAY = 1000;
@@ -308,23 +309,21 @@ class Rocket {
         this.status = 'ACTIVE';
         this.dockTime = 0;
         this.dockDuration = 100;
-        this.willFail = Math.random() < 0.03;
+        this.willFail = Math.random() < 0.12; // INCREASED: 12% blowup chance
         this.failTime = 0.2 + Math.random() * 0.8;
-        // Trajectory offset to avoid traveling "through" each other
         this.offset = (Math.random() - 0.5) * 12 * scaleFactor;
         this.calculatePath();
         this.flicker = 0;
         this.x = 0;
         this.y = 0;
-
-        // Add fuel cost for this leg
-        moneySpentOnFuel += COST_FUEL;
+        moneySpentOnFuel += COST_FUEL_LEG;
     }
 
     static checkObstruction(x1, y1, x2, y2, cx, cy, r) {
         const dx = x2 - x1;
         const dy = y2 - y1;
         const lengthSq = dx * dx + dy * dy;
+        if (lengthSq === 0) return false;
         const t = ((cx - x1) * dx + (cy - y1) * dy) / lengthSq;
         const closestX = x1 + Math.max(0, Math.min(1, t)) * dx;
         const closestY = y1 + Math.max(0, Math.min(1, t)) * dy;
@@ -367,24 +366,27 @@ class Rocket {
                 this.status = 'SUCCESS';
                 landedOnMars++;
                 shipsOnMars--;
+                totalColonists += 100;
             }
             return;
         }
 
         this.progress += BASE_ROCKET_SPEED * timeScale;
-        if (this.willFail && this.progress >= this.failTime) { this.explode(); return; }
+
+        if (this.willFail && this.progress >= this.failTime) {
+            this.explode();
+            return;
+        }
 
         const lx = this.startX + (this.endX - this.startX) * this.progress;
         const ly = this.startY + (this.endY - this.startY) * this.progress;
 
-        // Offset perpendicular to path
         const pathAngle = Math.atan2(this.endY - this.startY, this.endX - this.startX);
         this.x = lx + Math.cos(pathAngle + Math.PI/2) * this.offset;
         this.y = ly + Math.sin(pathAngle + Math.PI/2) * this.offset;
 
         if (this.progress >= 1.0) {
             if (this.leg === 'OUTBOUND') {
-                totalColonists += 100;
                 this.leg = 'DOCKING';
                 this.dockTime = 0;
                 shipsOnMars++;
@@ -400,12 +402,8 @@ class Rocket {
         this.status = 'FAILED';
         totalFailures++;
         if(this.leg === 'DOCKING') shipsOnMars--;
-
-        // Ship removed from fleet
         totalFleetCapacity--;
-        // Add to build queue
         constructionQueue.push(5);
-
         for (let i = 0; i < 40; i++) particles.push(new Particle(this.x, this.y));
     }
 
@@ -430,42 +428,37 @@ class Rocket {
 }
 
 function handleDailyLaunches(centerX, centerY) {
-    // Progress construction queue
     for (let i = constructionQueue.length - 1; i >= 0; i--) {
         constructionQueue[i]--;
         if (constructionQueue[i] <= 0) {
             constructionQueue.splice(i, 1);
             totalFleetCapacity++;
             availableFleet++;
-            // Cost of building new ship
             moneySpentOnRockets += COST_ROCKET;
         }
     }
 
     const earth = planets[2];
     const mars = planets[3];
-    const eTravel = 1 / BASE_ROCKET_SPEED;
-    const futureMarsAngle = mars.angle + ((BASE_ORBIT_SPEED / (mars.period / 365)) * eTravel);
-    const startEX = centerX + Math.cos(earth.angle) * (earth.dist * scaleFactor);
-    const startEY = centerY + Math.sin(earth.angle) * (earth.dist * scaleFactor);
-    const endEX = centerX + Math.cos(futureMarsAngle) * (mars.dist * scaleFactor);
-    const endEY = centerY + Math.sin(futureMarsAngle) * (mars.dist * scaleFactor);
+    const travelTime = 1 / BASE_ROCKET_SPEED;
+    const mercuryDangerZone = (planets[0].dist * scaleFactor) + 10 * scaleFactor;
 
     let isEarthSafe = true;
     let earthBlockReason = "";
 
-    if (availableFleet <= 0) {
-        isEarthSafe = false;
-        earthBlockReason = "NO SHIPS";
-    }
-    else if (shipsOnMars >= 6) {
-        isEarthSafe = false;
-        earthBlockReason = "MARS FULL";
-    }
-    const mercuryDist = planets[0].dist * scaleFactor;
-    if (isEarthSafe && Rocket.checkObstruction(startEX, startEY, endEX, endEY, centerX, centerY, mercuryDist + (5 * scaleFactor))) {
-        isEarthSafe = false;
-        earthBlockReason = "SOLAR DANGER";
+    if (availableFleet <= 0) { isEarthSafe = false; earthBlockReason = "NO SHIPS"; }
+    else if (shipsOnMars >= 6) { isEarthSafe = false; earthBlockReason = "MARS FULL"; }
+    else {
+        const futureMarsAngle = mars.angle + ((BASE_ORBIT_SPEED / (mars.period / 365)) * travelTime);
+        const sX = centerX + Math.cos(earth.angle) * (earth.dist * scaleFactor);
+        const sY = centerY + Math.sin(earth.angle) * (earth.dist * scaleFactor);
+        const eX = centerX + Math.cos(futureMarsAngle) * (mars.dist * scaleFactor);
+        const eY = centerY + Math.sin(futureMarsAngle) * (mars.dist * scaleFactor);
+
+        if (Rocket.checkObstruction(sX, sY, eX, eY, centerX, centerY, mercuryDangerZone)) {
+            isEarthSafe = false;
+            earthBlockReason = "SOLAR DANGER";
+        }
     }
 
     if (isEarthSafe && earthPopulation >= 100) {
@@ -473,24 +466,19 @@ function handleDailyLaunches(centerX, centerY) {
         earthPopulation -= 100;
         availableFleet--;
         earthStatusEl.innerText = "LAUNCHED"; earthStatusEl.className = "value";
-    } else if (!isEarthSafe) {
-        earthStatusEl.innerText = earthBlockReason || "WAITING"; earthStatusEl.className = "warning";
+    } else {
+        earthStatusEl.innerText = earthBlockReason || "WAITING";
+        earthStatusEl.className = earthBlockReason === "SOLAR DANGER" ? "warning" : "value";
     }
 
-    let isMarsSafe = landedOnMars > 0;
-    if (isMarsSafe) {
-        const mTravel = 1 / BASE_ROCKET_SPEED;
-        const futureEarthAngle = earth.angle + ((BASE_ORBIT_SPEED / (earth.period / 365)) * mTravel);
-        const startMX = centerX + Math.cos(mars.angle) * (mars.dist * scaleFactor);
-        const startMY = centerY + Math.sin(mars.angle) * (mars.dist * scaleFactor);
-        const endMX = centerX + Math.cos(futureEarthAngle) * (earth.dist * scaleFactor);
-        const endMY = centerY + Math.sin(futureEarthAngle) * (earth.dist * scaleFactor);
+    if (landedOnMars > 0) {
+        const futureEarthAngle = earth.angle + ((BASE_ORBIT_SPEED / (earth.period / 365)) * travelTime);
+        const sX = centerX + Math.cos(mars.angle) * (mars.dist * scaleFactor);
+        const sY = centerY + Math.sin(mars.angle) * (mars.dist * scaleFactor);
+        const eX = centerX + Math.cos(futureEarthAngle) * (earth.dist * scaleFactor);
+        const eY = centerY + Math.sin(futureEarthAngle) * (earth.dist * scaleFactor);
 
-        if (Rocket.checkObstruction(startMX, startMY, endMX, endMY, centerX, centerY, mercuryDist + (5 * scaleFactor))) {
-            isMarsSafe = false;
-        }
-
-        if (isMarsSafe) {
+        if (!Rocket.checkObstruction(sX, sY, eX, eY, centerX, centerY, mercuryDangerZone)) {
             rockets.push(new Rocket(false));
             landedOnMars--;
         }
@@ -519,7 +507,7 @@ function animate(time) {
         const orbitDist = p.dist * scaleFactor;
         const px = centerX + Math.cos(p.angle) * orbitDist;
         const py = centerY + Math.sin(p.angle) * orbitDist;
-        ctx.strokeStyle = '#222';
+        ctx.strokeStyle = p.name === 'Mercury' ? '#444' : '#222';
         ctx.beginPath(); ctx.arc(centerX, centerY, orbitDist, 0, Math.PI * 2); ctx.stroke();
         ctx.fillStyle = p.color;
         ctx.beginPath(); ctx.arc(px, py, p.radius * scaleFactor, 0, Math.PI * 2); ctx.fill();
@@ -530,15 +518,13 @@ function animate(time) {
     particles = particles.filter(p => p.life > 0);
     particles.forEach(p => { p.update(); p.draw(); });
 
-    // Update Telemetry
     failedEl.innerText = totalFailures;
     colonistEl.innerText = totalColonists.toLocaleString();
-    earthPopEl.innerText = (earthPopulation / 1000000000).toFixed(2) + "B";
+    earthPopEl.innerText = (earthPopulation / 1e9).toFixed(5) + "B";
     fleetEl.innerText = availableFleet;
     fleetTotalEl.innerText = totalFleetCapacity;
     buildQueueEl.innerText = constructionQueue.length;
 
-    // Update Finance
     totalSpentEl.innerText = formatCurrency(moneySpentOnRockets + moneySpentOnFuel);
     rocketSpentEl.innerText = formatCurrency(moneySpentOnRockets);
     fuelSpentEl.innerText = formatCurrency(moneySpentOnFuel);
