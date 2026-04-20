@@ -155,7 +155,6 @@
         <div id="telemetry">
             <div class="telemetry-item"><span class="label">Earth Pop:</span> <span id="earth-pop" class="value">8.1B</span></div>
             <div class="telemetry-item"><span class="label">Mars Pop:</span> <span id="colonist-count" class="value">0</span></div>
-            <div class="telemetry-item"><span class="label">Active Ships:</span> <span id="active-count" class="value">0</span></div>
             <div class="telemetry-item"><span class="label">Total Loss:</span> <span id="failed-count" class="value">0</span></div>
             <div class="telemetry-item"><span class="label">Earth Status:</span> <span id="earth-status" class="value">WAITING</span></div>
             <div class="telemetry-item"><span class="label">Mars Status:</span> <span id="mars-status" class="value">WAITING</span></div>
@@ -208,7 +207,6 @@
 <script>
 const canvas = document.getElementById('simCanvas');
 const ctx = canvas.getContext('2d');
-const activeEl = document.getElementById('active-count');
 const failedEl = document.getElementById('failed-count');
 const colonistEl = document.getElementById('colonist-count');
 const earthPopEl = document.getElementById('earth-pop');
@@ -235,8 +233,6 @@ window.addEventListener('resize', resize);
 resize();
 
 const SUN_BASE_RADIUS = 18;
-const DANGER_ZONE_BASE = 70;
-const TRAFFIC_SAFE_DISTANCE = 15;
 
 const planets = [
     { name: 'Mercury', dist: 65,  radius: 2, period: 88,   color: '#A5A5A5', angle: Math.random() * 6 },
@@ -251,6 +247,7 @@ let particles = [];
 let totalFailures = 0;
 let totalColonists = 0;
 let earthPopulation = 8100000000;
+let landedOnMars = 0;
 
 let simDate = new Date(2027, 0, 1);
 const BASE_MS_PER_DAY = 1000;
@@ -290,16 +287,21 @@ class Rocket {
         this.willFail = Math.random() < 0.05;
         this.failTime = 0.2 + Math.random() * 0.6;
         this.calculatePath();
+        this.flicker = 0;
+        this.x = 0;
+        this.y = 0;
     }
 
-    isPathObstructed(x1, y1, x2, y2, cx, cy, r) {
+    // Helper to check if a line segment passes through a circle
+    static checkObstruction(x1, y1, x2, y2, cx, cy, r) {
         const dx = x2 - x1;
         const dy = y2 - y1;
-        const t = ((cx - x1) * dx + (cy - y1) * dy) / (dx * dx + dy * dy);
+        const lengthSq = dx * dx + dy * dy;
+        const t = ((cx - x1) * dx + (cy - y1) * dy) / lengthSq;
         const closestX = x1 + Math.max(0, Math.min(1, t)) * dx;
         const closestY = y1 + Math.max(0, Math.min(1, t)) * dy;
-        const dist = Math.sqrt((cx - closestX)**2 + (cy - closestY)**2);
-        return dist < r;
+        const distSq = (cx - closestX)**2 + (cy - closestY)**2;
+        return distSq < (r * r);
     }
 
     calculatePath() {
@@ -333,7 +335,10 @@ class Rocket {
             this.x = (canvas.width / 2) + Math.cos(mars.angle) * (mars.dist * scaleFactor);
             this.y = (canvas.height / 2) + Math.sin(mars.angle) * (mars.dist * scaleFactor);
             this.dockTime += timeScale;
-            if (this.dockTime >= this.dockDuration) this.status = 'SUCCESS';
+            if (this.dockTime >= this.dockDuration) {
+                this.status = 'SUCCESS';
+                landedOnMars++;
+            }
             return;
         }
 
@@ -352,6 +357,8 @@ class Rocket {
                 this.status = 'SUCCESS';
             }
         }
+
+        this.flicker = (this.flicker + 0.2) % 1;
     }
 
     explode() {
@@ -366,8 +373,32 @@ class Rocket {
         ctx.translate(this.x, this.y);
         let angle = (this.leg === 'DOCKING') ? planets[3].angle + Math.PI/2 : Math.atan2(this.endY - this.startY, this.endX - this.startX) + Math.PI/2;
         ctx.rotate(angle);
-        ctx.fillStyle = '#CCCCCC';
-        ctx.fillRect(-1.5 * scaleFactor, -4 * scaleFactor, 3 * scaleFactor, 8 * scaleFactor);
+
+        const w = 4 * scaleFactor;
+        const h = 10 * scaleFactor;
+
+        if (this.leg !== 'DOCKING') {
+            const plumeH = (4 + Math.sin(Date.now() * 0.1) * 2) * scaleFactor;
+            ctx.fillStyle = this.flicker > 0.5 ? '#FF8800' : '#FF4400';
+            ctx.beginPath();
+            ctx.moveTo(-w/3, h/2);
+            ctx.lineTo(w/3, h/2);
+            ctx.lineTo(0, h/2 + plumeH);
+            ctx.fill();
+        }
+
+        ctx.fillStyle = '#BBB';
+        ctx.fillRect(-w/2, -h/4, w, h*0.75);
+        ctx.fillStyle = '#FFF';
+        ctx.beginPath();
+        ctx.moveTo(-w/2, -h/4);
+        ctx.lineTo(w/2, -h/4);
+        ctx.lineTo(0, -h/2);
+        ctx.fill();
+        ctx.fillStyle = '#555';
+        ctx.fillRect(-w*0.8, h/4, w*0.3, h/4);
+        ctx.fillRect(w*0.5, h/4, w*0.3, h/4);
+
         ctx.restore();
     }
 }
@@ -375,35 +406,72 @@ class Rocket {
 function handleDailyLaunches(centerX, centerY) {
     const earth = planets[2];
     const mars = planets[3];
-    const rocketHelper = new Rocket(true);
 
+    // Check if the proposed Earth launch path is safe
+    const eTravel = 1 / BASE_ROCKET_SPEED;
+    const futureMarsAngle = mars.angle + ((BASE_ORBIT_SPEED / (mars.period / 365)) * eTravel);
     const startEX = centerX + Math.cos(earth.angle) * (earth.dist * scaleFactor);
     const startEY = centerY + Math.sin(earth.angle) * (earth.dist * scaleFactor);
-    const futureMarsAngle = mars.angle + ((BASE_ORBIT_SPEED / (mars.period / 365)) * (1 / BASE_ROCKET_SPEED));
     const endEX = centerX + Math.cos(futureMarsAngle) * (mars.dist * scaleFactor);
     const endEY = centerY + Math.sin(futureMarsAngle) * (mars.dist * scaleFactor);
 
-    if (rocketHelper.isPathObstructed(startEX, startEY, endEX, endEY, centerX, centerY, DANGER_ZONE_BASE * scaleFactor)) {
+    let isEarthSafe = true;
+
+    // Check sun and inner planets (Mercury, Venus)
+    if (Rocket.checkObstruction(startEX, startEY, endEX, endEY, centerX, centerY, SUN_BASE_RADIUS * 2 * scaleFactor)) isEarthSafe = false;
+    planets.slice(0, 2).forEach(p => {
+        const px = centerX + Math.cos(p.angle) * (p.dist * scaleFactor);
+        const py = centerY + Math.sin(p.angle) * (p.dist * scaleFactor);
+        if (Rocket.checkObstruction(startEX, startEY, endEX, endEY, px, py, p.radius * 3 * scaleFactor)) isEarthSafe = false;
+    });
+
+    // Simple proximity check for other rockets to prevent stacking
+    rockets.forEach(r => {
+        const dist = Math.sqrt((startEX - r.x)**2 + (startEY - r.y)**2);
+        if (dist < 20 * scaleFactor) isEarthSafe = false;
+    });
+
+    if (isEarthSafe && earthPopulation >= 100) {
+        rockets.push(new Rocket(true));
+        earthPopulation -= 100;
+        earthStatusEl.innerText = "LAUNCHED"; earthStatusEl.className = "value";
+    } else if (!isEarthSafe) {
         earthStatusEl.innerText = "OBSTRUCTED"; earthStatusEl.className = "warning";
-    } else {
-        if (earthPopulation >= 100) {
-            rockets.push(new Rocket(true));
-            earthPopulation -= 100;
-            earthStatusEl.innerText = "LAUNCHED"; earthStatusEl.className = "value";
-        }
     }
 
-    const startMX = centerX + Math.cos(mars.angle) * (mars.dist * scaleFactor);
-    const startMY = centerY + Math.sin(mars.angle) * (mars.dist * scaleFactor);
-    const futureEarthAngle = earth.angle + ((BASE_ORBIT_SPEED / (earth.period / 365)) * (1 / BASE_ROCKET_SPEED));
-    const endMX = centerX + Math.cos(futureEarthAngle) * (earth.dist * scaleFactor);
-    const endMY = centerY + Math.sin(futureEarthAngle) * (earth.dist * scaleFactor);
+    // Check if the proposed Mars launch path is safe
+    let isMarsSafe = landedOnMars > 0;
+    if (isMarsSafe) {
+        const mTravel = 1 / BASE_ROCKET_SPEED;
+        const futureEarthAngle = earth.angle + ((BASE_ORBIT_SPEED / (earth.period / 365)) * mTravel);
+        const startMX = centerX + Math.cos(mars.angle) * (mars.dist * scaleFactor);
+        const startMY = centerY + Math.sin(mars.angle) * (mars.dist * scaleFactor);
+        const endMX = centerX + Math.cos(futureEarthAngle) * (earth.dist * scaleFactor);
+        const endMY = centerY + Math.sin(futureEarthAngle) * (earth.dist * scaleFactor);
 
-    if (!rocketHelper.isPathObstructed(startMX, startMY, endMX, endMY, centerX, centerY, DANGER_ZONE_BASE * scaleFactor)) {
-        rockets.push(new Rocket(false));
-        marsStatusEl.innerText = "LAUNCHED"; marsStatusEl.className = "value";
+        // Check sun and inner planets for return journey
+        if (Rocket.checkObstruction(startMX, startMY, endMX, endMY, centerX, centerY, SUN_BASE_RADIUS * 2 * scaleFactor)) isMarsSafe = false;
+        planets.slice(0, 3).forEach(p => {
+            const px = centerX + Math.cos(p.angle) * (p.dist * scaleFactor);
+            const py = centerY + Math.sin(p.angle) * (p.dist * scaleFactor);
+            if (Rocket.checkObstruction(startMX, startMY, endMX, endMY, px, py, p.radius * 3 * scaleFactor)) isMarsSafe = false;
+        });
+
+        // Prevention for returns stacking
+        rockets.forEach(r => {
+            const dist = Math.sqrt((startMX - r.x)**2 + (startMY - r.y)**2);
+            if (dist < 20 * scaleFactor) isMarsSafe = false;
+        });
+
+        if (isMarsSafe) {
+            rockets.push(new Rocket(false));
+            landedOnMars--;
+            marsStatusEl.innerText = "LAUNCHED"; marsStatusEl.className = "value";
+        } else {
+            marsStatusEl.innerText = "OBSTRUCTED"; marsStatusEl.className = "warning";
+        }
     } else {
-        marsStatusEl.innerText = "OBSTRUCTED"; marsStatusEl.className = "warning";
+        marsStatusEl.innerText = "NO SHIPS"; marsStatusEl.className = "delay";
     }
 }
 
@@ -422,11 +490,12 @@ function animate(time) {
         lastDayUpdate = time;
     }
 
-    // Sun
     ctx.fillStyle = '#FFD700';
+    ctx.shadowBlur = 15 * scaleFactor;
+    ctx.shadowColor = '#FF8800';
     ctx.beginPath(); ctx.arc(centerX, centerY, SUN_BASE_RADIUS * scaleFactor, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
 
-    // Planets
     planets.forEach(p => {
         p.angle += (BASE_ORBIT_SPEED / (p.period / 365)) * timeScale;
         const orbitDist = p.dist * scaleFactor;
@@ -443,7 +512,6 @@ function animate(time) {
     particles = particles.filter(p => p.life > 0);
     particles.forEach(p => { p.update(); p.draw(); });
 
-    activeEl.innerText = rockets.length;
     failedEl.innerText = totalFailures;
     colonistEl.innerText = totalColonists.toLocaleString();
     earthPopEl.innerText = (earthPopulation / 1000000000).toFixed(2) + "B";
