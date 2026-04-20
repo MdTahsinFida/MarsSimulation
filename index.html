@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mars Colonization: The Great Migration</title>
+    <style>
+        body { 
+            margin: 0; 
+            background: #050505; 
+            color: #00FF41; 
+            font-family: 'Courier New', monospace; 
+            display: flex; 
+            overflow: hidden; 
+            height: 100vh;
+        }
+        #canvas-container { 
+            flex: 1; 
+            position: relative; 
+            background: radial-gradient(circle at center, #0a0a0a 0%, #000 100%);
+        }
+        #ui-panel { 
+            width: 350px; 
+            padding: 25px; 
+            border-left: 2px solid #333; 
+            background: #0a0a0a; 
+            display: flex; 
+            flex-direction: column;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+            overflow-y: auto;
+            z-index: 10;
+        }
+        h2 { 
+            border-bottom: 1px solid #00FF41; 
+            padding-bottom: 10px; 
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 1.1em;
+            margin-top: 30px;
+        }
+        h2:first-child { margin-top: 0; }
+        .math-board { 
+            background: #000; 
+            padding: 15px; 
+            border: 1px solid #222; 
+            border-radius: 4px; 
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .calendar-display {
+            font-size: 1.4em;
+            color: #fff;
+            text-shadow: 0 0 10px #00FF41;
+        }
+        .telemetry-item {
+            margin: 10px 0;
+            font-size: 0.85em;
+            display: flex;
+            justify-content: space-between;
+        }
+        .label { color: #888; }
+        .value { color: #00FF41; font-weight: bold; }
+        .highlight { color: #00d4ff; font-weight: bold; }
+        
+        .control-group {
+            margin-top: 10px;
+            display: flex;
+            gap: 5px;
+        }
+        button {
+            background: #111;
+            border: 1px solid #00FF41;
+            color: #00FF41;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.8em;
+            flex: 1;
+            transition: all 0.2s;
+        }
+        button:hover { background: #00FF41; color: #000; }
+        button.active { background: #00FF41; color: #000; }
+
+        #status-display {
+            background: #111;
+            padding: 15px;
+            border: 1px solid #00FF41;
+            border-radius: 4px;
+            text-align: center;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 10px;
+            box-shadow: inset 0 0 15px rgba(0, 255, 65, 0.1);
+        }
+
+        #mission-log {
+            font-size: 0.75em;
+            color: #666;
+            height: 150px;
+            overflow-y: auto;
+            border: 1px solid #222;
+            padding: 8px;
+            margin-top: 20px;
+            background: rgba(0,0,0,0.4);
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container">
+    <canvas id="simCanvas"></canvas>
+</div>
+
+<div id="ui-panel">
+    <h2>Mission Calendar</h2>
+    <div class="math-board">
+        <div id="calendar" class="calendar-display">JAN 01, 2026</div>
+        <div class="control-group">
+            <button id="speed-1" class="active">1x</button>
+            <button id="speed-10">10x</button>
+            <button id="speed-50">50x</button>
+        </div>
+    </div>
+    
+    <h2>Mission Status</h2>
+    <div id="status-display">STANDBY</div>
+
+    <h2>Migration Statistics</h2>
+    <div class="telemetry-item"><span class="label">Earth Population:</span> <span id="earth-pop" class="value">8,000,000,000</span></div>
+    <div class="telemetry-item"><span class="label">Mars Population:</span> <span id="mars-pop" class="value">0</span></div>
+
+    <h2>Strategic Telemetry</h2>
+    <div id="telemetry">
+        <div class="telemetry-item"><span class="label">Ships En Route:</span> <span id="transit-count" class="highlight">0</span></div>
+        <div class="telemetry-item"><span class="label">System State:</span> <span id="build-status" class="value">INITIALIZING</span></div>
+        <div class="telemetry-item"><span class="label">Explosions:</span> <span id="failed-count" style="color:#ff4444;">0</span></div>
+    </div>
+
+    <div id="mission-log"></div>
+</div>
+
+<script>
+/**
+ * MARS COLONIZATION SIMULATION ENGINE (V19.1)
+ * * Internal Note: Ready for Git Commit
+ * * Fixed: Added ship offset logic to prevent visual collisions.
+ * * Restored: Sun glow effects and return trip logic.
+ * * Update: Ships now stagger arrival and follow distinct flight paths.
+ */
+
+const canvas = document.getElementById('simCanvas');
+const ctx = canvas.getContext('2d');
+const transitEl = document.getElementById('transit-count');
+const failedEl = document.getElementById('failed-count');
+const earthPopEl = document.getElementById('earth-pop');
+const marsPopEl = document.getElementById('mars-pop');
+const statusDisplayEl = document.getElementById('status-display');
+const calendarEl = document.getElementById('calendar');
+const buildStatusEl = document.getElementById('build-status');
+const logEl = document.getElementById('mission-log');
+
+function logMission(msg) {
+    const div = document.createElement('div');
+    div.style.marginBottom = '4px';
+    div.innerText = `> ${msg}`;
+    logEl.prepend(div);
+    if (logEl.children.length > 50) logEl.removeChild(logEl.lastChild);
+}
+
+function updateStatus(msg) {
+    if (statusDisplayEl.innerText !== msg) {
+        statusDisplayEl.innerText = msg;
+    }
+}
+
+function resize() {
+    canvas.width = window.innerWidth - 350;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const SUN_RADIUS = 20;
+const CONSTRUCTION_PERIOD_DAYS = 30;
+
+const planets = [
+    { name: 'Mercury', dist: 70,  radius: 2.5, period: 88,   color: '#A5A5A5', angle: Math.random() * 6 },
+    { name: 'Venus',   dist: 110, radius: 4.5, period: 225,  color: '#E3BB76', angle: Math.random() * 6 },
+    { name: 'Earth',   dist: 160, radius: 6,   period: 365,  color: '#2271B3', angle: 0 },
+    { name: 'Mars',    dist: 250, radius: 4.5, period: 687,  color: '#E27B58', angle: Math.PI / 4 },
+    { name: 'Jupiter', dist: 380, radius: 12,  period: 4333, color: '#D39C7E', angle: Math.random() * 6 }
+];
+
+let rockets = [];
+let particles = [];
+let totalFailures = 0;
+let earthPop = 8000000000;
+let marsPop = 0;
+
+let simDate = new Date(2026, 0, 1);
+let timeScale = 1.0; 
+let lastDayUpdate = 0;
+let lastLaunchDay = -1;
+
+let initialShipsArrived = 0;
+let constructionStarted = false;
+let constructionDayCount = 0;
+let constructionComplete = false;
+
+const ORBIT_SPEED = 0.0015;
+
+const speeds = { 'speed-1': 1, 'speed-10': 10, 'speed-50': 50 };
+Object.keys(speeds).forEach(id => {
+    document.getElementById(id).onclick = function() {
+        timeScale = speeds[id];
+        Object.keys(speeds).forEach(sid => document.getElementById(sid).classList.remove('active'));
+        this.classList.add('active');
+    };
+});
+
+class Particle {
+    constructor(x, y, color = '#FF6400') {
+        this.x = x; this.y = y;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 2 + 0.5;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.life = 1.0;
+        this.decay = Math.random() * 0.02 + 0.01;
+        this.color = color;
+    }
+    update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
+    draw() {
+        ctx.fillStyle = this.color.replace(')', `, ${this.life})`).replace('rgb', 'rgba');
+        ctx.fillRect(this.x, this.y, 2, 2);
+    }
+}
+
+class Rocket {
+    constructor(isOutbound, isInitial = false) {
+        this.leg = isOutbound ? 'OUTBOUND' : 'RETURN';
+        this.progress = 0;
+        // Vary speed slightly to stagger arrivals
+        this.speed = (0.0020 + Math.random() * 0.0006); 
+        this.status = 'ACTIVE';
+        this.dockTime = 0;
+        this.dockDuration = 100;
+        this.payload = isOutbound ? 100 : 0;
+        this.isInitial = isInitial;
+        
+        // Offset to prevent visual collision
+        this.offsetAngle = (Math.random() - 0.5) * 0.35; 
+        this.offsetDist = (Math.random() - 0.5) * 15;
+
+        this.willFail = Math.random() < 0.015; 
+        this.failTime = 0.3 + Math.random() * 0.5; 
+        
+        this.calculatePath();
+    }
+
+    calculatePath() {
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const earth = planets[2];
+        const mars = planets[3];
+
+        if (this.leg === 'OUTBOUND') {
+            this.startX = centerX + Math.cos(earth.angle) * earth.dist;
+            this.startY = centerY + Math.sin(earth.angle) * earth.dist;
+            const travelTime = 1 / this.speed;
+            const futureMarsAngle = mars.angle + ((ORBIT_SPEED / (mars.period / 365)) * travelTime);
+            this.endX = centerX + Math.cos(futureMarsAngle) * mars.dist;
+            this.endY = centerY + Math.sin(futureMarsAngle) * mars.dist;
+        } else {
+            this.startX = centerX + Math.cos(mars.angle) * mars.dist;
+            this.startY = centerY + Math.sin(mars.angle) * mars.dist;
+            const travelTime = 1 / this.speed;
+            const futureEarthAngle = earth.angle + (ORBIT_SPEED * travelTime);
+            this.endX = centerX + Math.cos(futureEarthAngle) * earth.dist;
+            this.endY = centerY + Math.sin(futureEarthAngle) * earth.dist;
+        }
+    }
+
+    update() {
+        if (this.status !== 'ACTIVE') return;
+
+        if (this.leg === 'DOCKING') {
+            const targetPlanet = this.isInitial || this.payload > 0 ? planets[3] : planets[2];
+            this.x = (canvas.width / 2) + Math.cos(targetPlanet.angle) * targetPlanet.dist;
+            this.y = (canvas.height / 2) + Math.sin(targetPlanet.angle) * targetPlanet.dist;
+            
+            this.dockTime += timeScale;
+            if (this.dockTime >= this.dockDuration) {
+                if (this.payload > 0) {
+                    marsPop += this.payload;
+                    if (this.isInitial) {
+                        initialShipsArrived++;
+                        logMission(`Core Unit #${initialShipsArrived} landed.`);
+                        if (initialShipsArrived >= 5) {
+                            constructionStarted = true;
+                        }
+                    }
+                    this.leg = 'RETURN';
+                    this.progress = 0;
+                    this.payload = 0;
+                    this.calculatePath();
+                } else {
+                    this.status = 'SUCCESS';
+                }
+            }
+            return;
+        }
+
+        this.progress += this.speed * timeScale;
+        
+        if (this.willFail && this.progress >= this.failTime) {
+            this.explode();
+            return;
+        }
+
+        // Apply pathing + visual offset to avoid collisions
+        const rawX = this.startX + (this.endX - this.startX) * this.progress;
+        const rawY = this.startY + (this.endY - this.startY) * this.progress;
+        
+        // Perpendicular offset logic
+        const dx = this.endX - this.startX;
+        const dy = this.endY - this.startY;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        const nx = -dy / len;
+        const ny = dx / len;
+        
+        // Bell curve for offset (less offset at start/end)
+        const curve = Math.sin(this.progress * Math.PI);
+        this.x = rawX + nx * this.offsetDist * curve;
+        this.y = rawY + ny * this.offsetDist * curve;
+
+        if (this.progress >= 1.0) {
+            this.leg = 'DOCKING';
+            this.dockTime = 0;
+        }
+    }
+
+    explode() {
+        this.status = 'FAILED';
+        totalFailures++;
+        logMission("ALERT: Vessel lost to collision or malfunction.");
+        for (let i = 0; i < 40; i++) particles.push(new Particle(this.x, this.y, 'rgb(255,100,0)'));
+    }
+
+    draw() {
+        if (this.status !== 'ACTIVE') return;
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        let angle = Math.atan2(this.endY - this.startY, this.endX - this.startX) + Math.PI/2;
+        ctx.rotate(angle);
+        
+        if (this.leg !== 'DOCKING') {
+            ctx.fillStyle = 'rgba(0, 255, 65, 0.4)';
+            ctx.beginPath();
+            ctx.moveTo(-1, 5); ctx.lineTo(1, 5); ctx.lineTo(0, 10);
+            ctx.fill();
+        }
+
+        ctx.fillStyle = this.isInitial ? '#00d4ff' : '#E0E0E0'; 
+        ctx.beginPath();
+        ctx.moveTo(-2.5, 4); ctx.lineTo(2.5, 4);
+        ctx.lineTo(2.5, -3); ctx.quadraticCurveTo(2.5, -8, 0, -11); ctx.quadraticCurveTo(-2.5, -8, -2.5, -3);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+function updateUI() {
+    const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    calendarEl.innerText = `${monthNames[simDate.getMonth()]} ${simDate.getDate().toString().padStart(2, '0')}, ${simDate.getFullYear()}`;
+    earthPopEl.innerText = Math.floor(earthPop).toLocaleString();
+    marsPopEl.innerText = Math.floor(marsPop).toLocaleString();
+    failedEl.innerText = totalFailures;
+    transitEl.innerText = rockets.filter(r => r.status === 'ACTIVE' && r.leg === 'OUTBOUND').length;
+
+    if (initialShipsArrived < 5) {
+        const inTransit = rockets.filter(r => r.isInitial && r.status === 'ACTIVE' && r.leg === 'OUTBOUND').length;
+        const totalSent = initialShipsArrived + inTransit;
+        
+        if (rockets.some(r => r.isInitial && r.leg === 'DOCKING')) {
+            updateStatus(`Receiving Ship #${initialShipsArrived + 1}`);
+        } else {
+            updateStatus(`Launching Ship #${totalSent + 1}`);
+        }
+        buildStatusEl.innerText = "PHASE: CREW TRANSIT";
+    } else if (!constructionComplete) {
+        updateStatus("Waiting for Mars Station");
+        const bPct = Math.floor((constructionDayCount / CONSTRUCTION_PERIOD_DAYS) * 100);
+        buildStatusEl.innerText = `BUILDING ALPHA (${bPct}%)`;
+        buildStatusEl.className = "highlight";
+    } else {
+        updateStatus("Migration Active");
+        buildStatusEl.innerText = "BASE OPERATIONAL";
+        buildStatusEl.className = "value";
+    }
+}
+
+function handleDailyLaunches() {
+    const dayKey = simDate.toDateString();
+    if (lastLaunchDay === dayKey) return;
+    lastLaunchDay = dayKey;
+
+    if (initialShipsArrived < 5) {
+        const inTransit = rockets.filter(r => r.isInitial && r.status === 'ACTIVE').length;
+        if (initialShipsArrived + inTransit < 5) {
+            rockets.push(new Rocket(true, true));
+            earthPop -= 100;
+        }
+        return;
+    }
+
+    if (!constructionComplete) {
+        constructionDayCount++;
+        if (constructionDayCount >= CONSTRUCTION_PERIOD_DAYS) {
+            constructionComplete = true;
+            logMission("COMM: Base operational. Authorized full migration.");
+        }
+        return;
+    }
+
+    // Mass Migration
+    if (simDate.getDate() % 2 === 0) {
+        for (let i = 0; i < 2; i++) {
+            rockets.push(new Rocket(true));
+            earthPop -= 100;
+        }
+    }
+}
+
+function animate(time) {
+    ctx.fillStyle = 'rgba(5, 5, 5, 0.4)'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    if (time - lastDayUpdate > (1000 / timeScale)) {
+        simDate.setDate(simDate.getDate() + 1);
+        handleDailyLaunches();
+        lastDayUpdate = time;
+        updateUI();
+    }
+
+    const dt = timeScale;
+    
+    // Sun Visuals
+    const sunPulse = 18 + Math.sin(time / 500) * 1.5;
+    const grad = ctx.createRadialGradient(centerX, centerY, 5, centerX, centerY, sunPulse * 3.5);
+    grad.addColorStop(0, '#FFFAD5');
+    grad.addColorStop(0.2, '#FFD700');
+    grad.addColorStop(0.5, 'rgba(255, 140, 0, 0.1)');
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(centerX, centerY, sunPulse * 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath(); ctx.arc(centerX, centerY, sunPulse, 0, Math.PI * 2); ctx.fill();
+
+    // Planets
+    planets.forEach(p => {
+        p.angle += (ORBIT_SPEED / (p.period / 365)) * dt;
+        const px = centerX + Math.cos(p.angle) * p.dist;
+        const py = centerY + Math.sin(p.angle) * p.dist;
+        
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.beginPath(); ctx.arc(centerX, centerY, p.dist, 0, Math.PI * 2); ctx.stroke();
+        
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(px, py, p.radius, 0, Math.PI * 2); ctx.fill();
+        
+        if (p.name === 'Earth' || p.name === 'Mars') {
+            ctx.strokeStyle = p.color + '33';
+            ctx.beginPath(); ctx.arc(px, py, p.radius + 3, 0, Math.PI * 2); ctx.stroke();
+        }
+    });
+
+    rockets = rockets.filter(r => r.status === 'ACTIVE' || r.leg === 'DOCKING' || (r.status === 'SUCCESS' && r.progress < 1.1));
+    rockets.forEach(r => { r.update(); r.draw(); });
+    
+    particles = particles.filter(p => p.life > 0);
+    particles.forEach(p => { p.update(); p.draw(); });
+
+    requestAnimationFrame(animate);
+}
+
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
